@@ -16,7 +16,7 @@ from playwright.sync_api import sync_playwright
 
 # Constants with environment variable support
 data_folder = os.getenv('TSP_DATA_FOLDER', 'sharesansarTSP')
-url = 'https://www.sharesansar.com/today-share-price'
+url = os.getenv('SHARESANSAR_URL', 'https://www.sharesansar.com/today-share-price')
 start_date = datetime(2020, 1, 1)
 end_date = datetime.now()
 

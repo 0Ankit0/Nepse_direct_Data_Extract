@@ -41,8 +41,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY . .
 
 # Create data directories with proper permissions
-RUN mkdir -p /app/data /app/sharesansarTSP /app/logs && \
-    chmod 755 /app/data /app/sharesansarTSP /app/logs
+RUN mkdir -p /app/sharesansarTSP /app/logs && \
+    chmod 755 /app/sharesansarTSP /app/logs
 
 # Create a non-root user for security
 RUN adduser --disabled-password --gecos '' appuser && \
@@ -51,7 +51,7 @@ RUN adduser --disabled-password --gecos '' appuser && \
 USER appuser
 
 # Expose volumes for data persistence
-VOLUME ["/app/data", "/app/sharesansarTSP", "/app/logs"]
+VOLUME ["/app/sharesansarTSP", "/app/logs"]
 
-# Set default command to run the auto historic scraper (option 1 with auto-confirm)
-CMD ["python", "auto_historic_scraper.py"]
+# Set default command to run the ShareSansar TSP scraper
+CMD ["python", "sharesansar_tsp_scraper.py"]
