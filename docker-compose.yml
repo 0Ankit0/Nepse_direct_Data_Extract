@@ -1,0 +1,63 @@
+# Docker Compose for NEPSE Scraper
+version: '3.8'
+
+services:
+  nepse-scraper:
+    build: .
+    container_name: nepse-scraper
+    volumes:
+      # Mount data directory to persist scraped data
+      - ./data:/app/data
+      # Mount logs directory
+      - ./logs:/app/logs
+    environment:
+      - PYTHONPATH=/app
+      - TZ=Asia/Kathmandu
+      - DATA_FOLDER=/app/data
+      - SCRAPER_DELAY=1.0
+    restart: "no"  # Don't restart automatically since this is a one-time job
+    
+    # Override command for different scrapers
+    # Default: auto historic scraper (FULL YEAR of data for ALL securities - takes hours!)
+    command: ["python", "auto_historic_scraper.py"]
+    
+    # For container-optimized scraper (recent data only, continuous mode)
+    # command: ["python", "container_scraper.py"]
+    
+    # For simple scraper (quick recent data)
+    # command: ["python", "simple_nepse_scraper.py"]
+    
+    # For historical scraper (interactive mode)
+    # command: ["python", "nepse_historical_scraper.py"]
+    
+    # Keep container running for manual execution
+    # command: ["tail", "-f", "/dev/null"]
+
+  # Continuous scraper for ongoing data collection (recent data only)
+  nepse-continuous:
+    build: .
+    container_name: nepse-continuous
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    environment:
+      - PYTHONPATH=/app
+      - TZ=Asia/Kathmandu
+      - SCRAPER_MODE=continuous
+      - SCRAPER_INTERVAL=60
+      - SCRAPER_DELAY=1.0
+      - MAX_DATES=10
+    restart: unless-stopped
+    command: ["python", "container_scraper.py"]
+
+  # Optional: Add a web interface for monitoring
+  nepse-web:
+    build: .
+    container_name: nepse-web
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+    command: ["python", "-m", "http.server", "8080"]
+    depends_on:
+      - nepse-scraper

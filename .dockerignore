@@ -1,0 +1,38 @@
+# Docker ignore file for NEPSE Scraper
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Data files (will be mounted as volume)
+data/
+logs/
+*.log
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Test files
+test_*.py
+
+# Documentation
+README.md
