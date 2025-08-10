@@ -7,6 +7,7 @@ Follow these steps to set up and run the NEPSE scraper on your server:
 ### 📋 Prerequisites
 
 Make sure your server has:
+
 - **Docker** and **Docker Compose** installed
 - **Git** installed
 - **Internet connection** (for accessing NEPSE API)
@@ -15,17 +16,20 @@ Make sure your server has:
 ### 🔧 Step-by-Step Setup
 
 #### 1. Clone the Repository
+
 ```bash
 git clone https://github.com/0Ankit0/Nepse_direct_Data_Extract.git
 cd Nepse_direct_Data_Extract
 ```
 
 #### 2. Make Scripts Executable (Linux/Mac)
+
 ```bash
 chmod +x docker-run.sh
 ```
 
 #### 3. Build the Docker Image
+
 ```bash
 # Linux/Mac
 ./docker-run.sh build
@@ -40,6 +44,7 @@ docker build -t nepse-scraper:latest .
 #### 4. Choose Your Scraping Strategy
 
 **🎯 For Complete Historical Data (Recommended for first run):**
+
 ```bash
 # This will scrape ALL securities with 1 year of historical data
 # ⚠️ WARNING: Takes 4-8 hours and creates hundreds of CSV files
@@ -55,6 +60,7 @@ docker-compose up nepse-scraper
 ```
 
 **📊 For Recent Data Only (Quick test):**
+
 ```bash
 # Linux/Mac
 ./docker-run.sh latest
@@ -64,6 +70,7 @@ docker-run.bat latest
 ```
 
 **🔄 For Continuous Monitoring:**
+
 ```bash
 # Run every 60 minutes (default)
 ./docker-run.sh continuous
@@ -78,6 +85,7 @@ docker-compose up -d nepse-continuous
 ### 📂 Data Location
 
 After running, your data will be in:
+
 ```
 ./data/
 ├── NABIL_historical_data.csv
@@ -89,11 +97,13 @@ After running, your data will be in:
 ### 🔍 Monitoring and Management
 
 #### Check Running Containers
+
 ```bash
 docker ps
 ```
 
 #### View Logs
+
 ```bash
 # Real-time logs
 docker-compose logs -f nepse-scraper
@@ -103,6 +113,7 @@ docker-compose logs -f nepse-scraper
 ```
 
 #### Stop All Containers
+
 ```bash
 ./docker-run.sh stop
 # Or
@@ -110,6 +121,7 @@ docker-compose down
 ```
 
 #### Access Container Shell (for debugging)
+
 ```bash
 ./docker-run.sh shell
 ```
@@ -117,7 +129,9 @@ docker-compose down
 ### 🎛️ Configuration Options
 
 #### Environment Variables
+
 Create a `.env` file for custom configuration:
+
 ```bash
 # .env file
 DATA_FOLDER=/app/data
@@ -126,7 +140,9 @@ TZ=Asia/Kathmandu
 ```
 
 #### Custom Docker Compose
+
 Edit `docker-compose.yml` to:
+
 - Change scraping intervals
 - Set memory limits
 - Configure restart policies
@@ -135,6 +151,7 @@ Edit `docker-compose.yml` to:
 ### 🚨 Production Considerations
 
 #### 1. Resource Requirements
+
 ```yaml
 # Add to docker-compose.yml
 deploy:
@@ -145,18 +162,21 @@ deploy:
 ```
 
 #### 2. Log Management
+
 ```bash
 # Rotate logs to prevent disk space issues
 docker system prune -f
 ```
 
 #### 3. Backup Strategy
+
 ```bash
 # Backup data folder regularly
 tar -czf nepse_backup_$(date +%Y%m%d).tar.gz data/
 ```
 
 #### 4. Monitoring Script
+
 ```bash
 #!/bin/bash
 # monitor.sh - Check if scraper is running
@@ -169,6 +189,7 @@ fi
 ### 🔄 Maintenance Commands
 
 #### Update to Latest Code
+
 ```bash
 git pull origin main
 docker-compose down
@@ -177,12 +198,14 @@ docker-compose up -d
 ```
 
 #### Clean Up Old Data
+
 ```bash
 # Remove files older than 30 days
 find ./data -name "*.csv" -mtime +30 -delete
 ```
 
 #### System Cleanup
+
 ```bash
 # Remove unused Docker images
 docker system prune -a -f
@@ -193,12 +216,14 @@ docker system prune -a -f
 #### Common Issues
 
 **1. Permission Denied**
+
 ```bash
 sudo chown -R $USER:$USER ./data
 chmod 755 ./data
 ```
 
 **2. Port Already in Use**
+
 ```bash
 # Check what's using the port
 sudo netstat -tulpn | grep :8080
@@ -206,6 +231,7 @@ sudo netstat -tulpn | grep :8080
 ```
 
 **3. Out of Disk Space**
+
 ```bash
 # Check disk usage
 df -h
@@ -214,12 +240,14 @@ docker system prune -a -f
 ```
 
 **4. Container Keeps Restarting**
+
 ```bash
 # Check logs for errors
 docker logs nepse-scraper
 ```
 
 **5. No Data Generated**
+
 ```bash
 # Check if NEPSE API is accessible
 curl -I https://www.nepalstock.com
@@ -240,6 +268,7 @@ After running the full historical scraper, expect:
 ### 🔔 Notifications
 
 #### Set up Slack/Email notifications (optional)
+
 ```bash
 # Add to your crontab for daily status
 0 9 * * * /path/to/check_scraper.sh | mail -s "NEPSE Scraper Status" your@email.com

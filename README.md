@@ -43,6 +43,7 @@ chmod +x setup-server.sh
 ```
 
 **Windows Server:**
+
 ```cmd
 git clone https://github.com/0Ankit0/Nepse_direct_Data_Extract.git
 cd Nepse_direct_Data_Extract
