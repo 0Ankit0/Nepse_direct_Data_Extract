@@ -27,7 +27,31 @@ A Python project to scrape historical stock market data from the Nepal Stock Exc
 
 ## 📦 Installation
 
-### Option 1: Local Installation
+### 🚀 Quick Server Setup (Recommended)
+
+**For servers/production deployment:**
+
+```bash
+# Linux/Mac
+curl -sSL https://raw.githubusercontent.com/0Ankit0/Nepse_direct_Data_Extract/main/setup-server.sh | bash
+
+# Or manually:
+git clone https://github.com/0Ankit0/Nepse_direct_Data_Extract.git
+cd Nepse_direct_Data_Extract
+chmod +x setup-server.sh
+./setup-server.sh
+```
+
+**Windows Server:**
+```cmd
+git clone https://github.com/0Ankit0/Nepse_direct_Data_Extract.git
+cd Nepse_direct_Data_Extract
+setup-server.bat
+```
+
+📖 **For detailed server deployment, see [SERVER_DEPLOYMENT.md](SERVER_DEPLOYMENT.md)**
+
+### Option 2: Local Installation (Development)
 
 1. Clone or download this project
 2. Install the required packages:
@@ -42,7 +66,7 @@ Or install manually:
 pip install nepse-scraper pandas
 ```
 
-### Option 2: Docker Installation
+### Option 3: Docker Installation
 
 1. **Build the Docker image:**
 
