@@ -1,28 +1,9 @@
-﻿# Docker Compose for ShareSansar TSP Scraper
 version: "3.8"
-
 services:
-  # ShareSansar TSP scraper for today's share price data
-  sharesansar-tsp:
+  nepse_scraper:
     build: .
-    container_name: sharesansar-tsp
+    container_name: nepse_scraper
     volumes:
-      - ./sharesansarTSP:/app/sharesansarTSP
-      - ./logs:/app/logs
-    env_file:
-      - .env
-    restart: unless-stopped
+      - .:/app
+  user: "${UID:-1000}:${GID:-1000}"
     command: ["python", "sharesansar_tsp_scraper.py"]
-
-  # Optional: Add a web interface for monitoring TSP data
-  tsp-web:
-    build: .
-    container_name: tsp-web
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./sharesansarTSP:/app/sharesansarTSP
-    command: ["python", "-m", "http.server", "8080"]
-    working_dir: /app/sharesansarTSP
-    depends_on:
-      - sharesansar-tsp
