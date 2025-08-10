@@ -5,5 +5,5 @@ services:
     container_name: nepse_scraper
     volumes:
       - .:/app
-  user: "${UID:-1000}:${GID:-1000}"
+    user: "${UID:-1000}:${GID:-1000}"
     command: ["python", "sharesansar_tsp_scraper.py"]
