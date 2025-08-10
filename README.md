@@ -4,6 +4,8 @@ A Python project to scrape historical stock market data from the Nepal Stock Exc
 
 ## 🚀 Features
 
+### NEPSE Data Scraping
+
 - **Comprehensive Data Scraping**: Download historical data for all listed securities on NEPSE
 - **Flexible Date Ranges**: Scrape data from today to one year prior (NEPSE API limitation)
 - **Multiple Scraping Options**:
@@ -13,17 +15,46 @@ A Python project to scrape historical stock market data from the Nepal Stock Exc
 - **CSV Output**: Data saved as individual CSV files per security
 - **Error Handling**: Robust error handling with detailed logging
 - **Rate Limiting**: Built-in delays to avoid overwhelming the API
+
+### ShareSansar TSP Data Scraping
+
+- **Today's Share Price Data**: Scrape daily share price data from ShareSansar
+- **Historical Data Collection**: Download data from 2020 onwards
+- **Container-Optimized**: Built for Docker deployment with continuous operation
+- **Flexible Operation Modes**:
+  - Historical scraping (full data from 2020)
+  - Recent data scraping (configurable days back)
+  - Continuous operation (scheduled scraping)
+- **Weekend Awareness**: Automatically skips weekends (Friday/Saturday in Nepal)
+
+### Docker & Deployment
+
 - **🐳 Docker Support**: Containerized deployment for consistent, scalable scraping
+- **Multi-Container Setup**: Separate containers for different scrapers
+- **Systemd Integration**: Background service configuration for Linux servers
 
 ## 📁 Files
+
+### NEPSE Scrapers
 
 1. **`nepse_historical_scraper.py`** - Full-featured scraper with comprehensive historical data collection
 2. **`simple_nepse_scraper.py`** - Simplified version for quick data retrieval
 3. **`container_scraper.py`** - Container-optimized scraper with environment variable configuration
-4. **`Dockerfile`** - Docker container definition
-5. **`docker-compose.yml`** - Multi-container orchestration
-6. **`requirements.txt`** - Python dependencies
-7. **`data/`** - Directory where CSV files are saved
+
+### ShareSansar TSP Scraper
+
+4. **`sharesansar_tsp_scraper.py`** - ShareSansar Today's Share Price data scraper with continuous operation support
+
+### Docker & Deployment
+
+5. **`Dockerfile`** - Docker container definition
+6. **`docker-compose.yml`** - Multi-container orchestration
+7. **`requirements.txt`** - Python dependencies
+
+### Data Directories
+
+8. **`data/`** - Directory where NEPSE CSV files are saved
+9. **`sharesansarTSP/`** - Directory where ShareSansar TSP CSV files are saved
 
 ## 📦 Installation
 
@@ -107,35 +138,37 @@ Docker provides consistent, isolated environments and easier deployment:
 # Build the image
 ./docker-run.sh build
 
-# Get latest market data (one-time)
-./docker-run.sh latest
+# NEPSE Scraper Commands
+./docker-run.sh latest                    # Get latest market data (one-time)
+./docker-run.sh continuous 30             # Run continuous scraping every 30 minutes
+./docker-run.sh specific "NABIL,NICA,SCBL,EBL"  # Scrape specific securities
+./docker-run.sh interactive               # Interactive mode
+./docker-run.sh logs                      # View logs of running container
+./docker-run.sh stop                      # Stop all containers
 
-# Run continuous scraping every 30 minutes
-./docker-run.sh continuous 30
-
-# Scrape specific securities
-./docker-run.sh specific "NABIL,NICA,SCBL,EBL"
-
-# Interactive mode
-./docker-run.sh interactive
-
-# View logs of running container
-./docker-run.sh logs
-
-# Stop all containers
-./docker-run.sh stop
+# ShareSansar TSP Scraper Commands
+./docker-run.sh tsp-historical           # Full historical ShareSansar TSP data
+./docker-run.sh tsp-recent 14            # Recent 14 days ShareSansar TSP data
+./docker-run.sh tsp-continuous 180       # Run ShareSansar TSP scraper every 3 hours
 ```
 
 #### Docker Compose
 
 ```bash
-# Start continuous scraper service
-docker-compose up -d nepse-scraper
+# Start continuous NEPSE scraper service
+docker-compose up -d nepse-continuous
+
+# Start ShareSansar TSP scraper service
+docker-compose up -d sharesansar-tsp
+
+# Start all services
+docker-compose up -d
 
 # View logs
-docker-compose logs -f nepse-scraper
+docker-compose logs -f nepse-continuous
+docker-compose logs -f sharesansar-tsp
 
-# Stop service
+# Stop services
 docker-compose down
 ```
 

@@ -86,6 +86,46 @@ shell() {
         nepse-scraper:latest /bin/bash
 }
 
+# Function to run ShareSansar TSP scraper historical data
+run_tsp_historical() {
+    echo "Running ShareSansar TSP historical scraper..."
+    docker run --rm \
+        -v "$(pwd)/sharesansarTSP:/app/sharesansarTSP" \
+        -e SCRAPER_MODE=historical \
+        -e TSP_DATA_FOLDER=/app/sharesansarTSP \
+        nepse-scraper:latest python sharesansar_tsp_scraper.py
+}
+
+# Function to run ShareSansar TSP scraper for recent data
+run_tsp_recent() {
+    local days=${1:-7}
+    echo "Running ShareSansar TSP recent data scraper (last $days days)..."
+    docker run --rm \
+        -v "$(pwd)/sharesansarTSP:/app/sharesansarTSP" \
+        -e SCRAPER_MODE=recent \
+        -e DAYS_BACK="$days" \
+        -e TSP_DATA_FOLDER=/app/sharesansarTSP \
+        nepse-scraper:latest python sharesansar_tsp_scraper.py
+}
+
+# Function to run ShareSansar TSP scraper continuously
+run_tsp_continuous() {
+    local interval=${1:-120}
+    echo "Running ShareSansar TSP continuous scraper (interval: ${interval} minutes)..."
+    docker run -d \
+        --name sharesansar-tsp \
+        -v "$(pwd)/sharesansarTSP:/app/sharesansarTSP" \
+        -e SCRAPER_MODE=continuous \
+        -e SCRAPER_INTERVAL="$interval" \
+        -e TSP_DATA_FOLDER=/app/sharesansarTSP \
+        --restart unless-stopped \
+        nepse-scraper:latest python sharesansar_tsp_scraper.py
+    
+    echo "Container 'sharesansar-tsp' started in background"
+    echo "Use 'docker logs -f sharesansar-tsp' to view logs"
+    echo "Use 'docker stop sharesansar-tsp' to stop"
+}
+
 # Main menu
 case "$1" in
     build)
@@ -115,10 +155,19 @@ case "$1" in
     shell)
         shell
         ;;
+    tsp-historical)
+        run_tsp_historical
+        ;;
+    tsp-recent)
+        run_tsp_recent "$2"
+        ;;
+    tsp-continuous)
+        run_tsp_continuous "$2"
+        ;;
     *)
-        echo "Usage: $0 {build|historic|latest|continuous|specific|interactive|stop|logs|shell}"
+        echo "Usage: $0 {build|historic|latest|continuous|specific|interactive|stop|logs|shell|tsp-historical|tsp-recent|tsp-continuous}"
         echo ""
-        echo "Commands:"
+        echo "NEPSE Scraper Commands:"
         echo "  build                    - Build the Docker image"
         echo "  historic                 - Run FULL historical scraper (ALL securities, 1 year data)"
         echo "  latest                   - Run latest data scraper once (recent data only)"
@@ -129,6 +178,11 @@ case "$1" in
         echo "  logs [container]         - View container logs"
         echo "  shell                    - Open shell in container"
         echo ""
+        echo "ShareSansar TSP Scraper Commands:"
+        echo "  tsp-historical           - Run ShareSansar TSP historical scraper"
+        echo "  tsp-recent [days]        - Run ShareSansar TSP recent data scraper (default: 7 days)"
+        echo "  tsp-continuous [interval]- Run ShareSansar TSP continuous scraper (default: 120 min)"
+        echo ""
         echo "Examples:"
         echo "  $0 build"
         echo "  $0 historic              (WARNING: Takes several hours!)"
@@ -136,6 +190,9 @@ case "$1" in
         echo "  $0 continuous 30"
         echo "  $0 specific \"NABIL,NICA,SCBL\""
         echo "  $0 interactive"
+        echo "  $0 tsp-historical"
+        echo "  $0 tsp-recent 14"
+        echo "  $0 tsp-continuous 180"
         exit 1
         ;;
 esac

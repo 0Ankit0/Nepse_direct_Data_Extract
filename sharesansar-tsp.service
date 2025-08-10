@@ -1,0 +1,19 @@
+[Unit]
+Description=ShareSansar TSP Data Scraper
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=futsal
+Group=futsal
+WorkingDirectory=/home/futsal/Nepse_direct_Data_Extract
+ExecStart=/usr/bin/docker-compose up sharesansar-tsp
+ExecStop=/usr/bin/docker-compose stop sharesansar-tsp
+Restart=always
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

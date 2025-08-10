@@ -50,6 +50,24 @@ services:
     restart: unless-stopped
     command: ["python", "container_scraper.py"]
 
+  # ShareSansar TSP scraper for today's share price data
+  sharesansar-tsp:
+    build: .
+    container_name: sharesansar-tsp
+    volumes:
+      - ./sharesansarTSP:/app/sharesansarTSP
+      - ./logs:/app/logs
+    environment:
+      - PYTHONPATH=/app
+      - TZ=Asia/Kathmandu
+      - SCRAPER_MODE=continuous
+      - SCRAPER_INTERVAL=120 # Run every 2 hours
+      - SCRAPER_DELAY=2.0
+      - TSP_DATA_FOLDER=/app/sharesansarTSP
+      - DAYS_BACK=3
+    restart: unless-stopped
+    command: ["python", "sharesansar_tsp_scraper.py"]
+
   # Optional: Add a web interface for monitoring
   nepse-web:
     build: .
