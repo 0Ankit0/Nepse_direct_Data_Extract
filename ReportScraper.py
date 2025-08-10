@@ -367,27 +367,19 @@ def scrape_company_report(page, symbol, fiscal_year):
         return False
 
 def get_companies_from_fiscal_years():
-    """Get list of companies by checking fiscal year options and common symbols"""
-    # For now, return a predefined list of major companies
-    # This can be expanded by scraping the actual dropdown or from a comprehensive list
-    companies = [
-        {'symbol': 'ADBL'}, {'symbol': 'NABIL'}, {'symbol': 'SCB'}, {'symbol': 'HBL'}, {'symbol': 'EBL'},
-        {'symbol': 'BOKL'}, {'symbol': 'NICA'}, {'symbol': 'MBL'}, {'symbol': 'LBL'}, {'symbol': 'KBL'},
-        {'symbol': 'MACHHAPUCHHRE'}, {'symbol': 'NMB'}, {'symbol': 'PRVU'}, {'symbol': 'SBL'}, {'symbol': 'NBL'},
-        {'symbol': 'GBIME'}, {'symbol': 'CZBIL'}, {'symbol': 'SANIMA'}, {'symbol': 'MEGA'}, {'symbol': 'PCBL'},
-        {'symbol': 'LAXMI'}, {'symbol': 'SUNRISE'}, {'symbol': 'CCBL'}, {'symbol': 'CIVIL'}, {'symbol': 'NTC'},
-        {'symbol': 'NLIC'}, {'symbol': 'NLICL'}, {'symbol': 'PICL'}, {'symbol': 'LGIL'}, {'symbol': 'SICL'},
-        {'symbol': 'NIL'}, {'symbol': 'PRIN'}, {'symbol': 'SIL'}, {'symbol': 'UIC'}, {'symbol': 'PIC'},
-        {'symbol': 'CHDC'}, {'symbol': 'STC'}, {'symbol': 'AKPL'}, {'symbol': 'UPPER'}, {'symbol': 'CHCL'},
-        {'symbol': 'SHPC'}, {'symbol': 'KPCL'}, {'symbol': 'NHPC'}, {'symbol': 'BPCL'}, {'symbol': 'HURJA'},
-        {'symbol': 'RADHI'}, {'symbol': 'RURU'}, {'symbol': 'AKJCL'}, {'symbol': 'TRH'}, {'symbol': 'UMHL'},
-        {'symbol': 'CHL'}, {'symbol': 'HPL'}, {'symbol': 'BARUN'}, {'symbol': 'UMRH'}, {'symbol': 'PMHPL'},
-        {'symbol': 'MHNL'}, {'symbol': 'PPCL'}, {'symbol': 'NGPL'}, {'symbol': 'DHPL'}, {'symbol': 'SJCL'},
-        {'symbol': 'RHPL'}, {'symbol': 'UNHPL'}, {'symbol': 'API'}, {'symbol': 'AHPC'}, {'symbol': 'BNHC'},
-        {'symbol': 'JOSHI'}, {'symbol': 'ACLBSL'}, {'symbol': 'SLBSL'}, {'symbol': 'NLBBL'}, {'symbol': 'ADBL'},
-        {'symbol': 'GILB'}, {'symbol': 'GBLBS'}, {'symbol': 'KLBSL'}, {'symbol': 'MLBSL'}, {'symbol': 'RLFL'}
-    ]
-    
+    """Get list of companies from Company_listings.json scraped from Nepal Stock Exchange"""
+    import json
+    path = 'Company_listings.json'
+    if not os.path.exists(path):
+        print(f"File {path} not found. Returning empty company list.")
+        return []
+    with open(path, encoding='utf-8') as f:
+        data = json.load(f)
+    companies = []
+    for c in data.get('companies', []):
+        symbol = c.get('Symbol') or c.get('symbol')
+        if symbol:
+            companies.append({'symbol': symbol.strip()})
     return companies
 
 
