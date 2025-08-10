@@ -45,25 +45,27 @@ pip install nepse-scraper pandas
 ### Option 2: Docker Installation
 
 1. **Build the Docker image:**
+
    ```bash
    # Linux/Mac
    ./docker-run.sh build
-   
+
    # Windows
    docker-run.bat build
-   
+
    # Or manually
    docker build -t nepse-scraper:latest .
    ```
 
 2. **Quick start with Docker:**
+
    ```bash
    # Get latest data once
    ./docker-run.sh latest
-   
+
    # Run continuously every 60 minutes
    ./docker-run.sh continuous
-   
+
    # Interactive mode
    ./docker-run.sh interactive
    ```
@@ -75,6 +77,7 @@ pip install nepse-scraper pandas
 Docker provides consistent, isolated environments and easier deployment:
 
 #### Quick Docker Commands
+
 ```bash
 # Build the image
 ./docker-run.sh build
@@ -99,6 +102,7 @@ Docker provides consistent, isolated environments and easier deployment:
 ```
 
 #### Docker Compose
+
 ```bash
 # Start continuous scraper service
 docker-compose up -d nepse-scraper

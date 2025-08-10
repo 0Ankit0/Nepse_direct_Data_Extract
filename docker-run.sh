@@ -11,9 +11,18 @@ build_image() {
     echo "Build complete!"
 }
 
+# Function to run full historical scraper
+run_historic() {
+    echo "Running FULL historical scraper (ALL securities, 1 year data - takes hours!)"
+    echo "This will scrape 318+ securities with complete historical data"
+    docker run --rm \
+        -v "$(pwd)/data:/app/data" \
+        nepse-scraper:latest python auto_historic_scraper.py
+}
+
 # Function to run latest data scraper
 run_latest() {
-    echo "Running latest data scraper..."
+    echo "Running latest data scraper (recent data only)..."
     docker run --rm \
         -v "$(pwd)/data:/app/data" \
         -e SCRAPER_MODE=latest \
@@ -82,6 +91,9 @@ case "$1" in
     build)
         build_image
         ;;
+    historic)
+        run_historic
+        ;;
     latest)
         run_latest
         ;;
@@ -104,11 +116,12 @@ case "$1" in
         shell
         ;;
     *)
-        echo "Usage: $0 {build|latest|continuous|specific|interactive|stop|logs|shell}"
+        echo "Usage: $0 {build|historic|latest|continuous|specific|interactive|stop|logs|shell}"
         echo ""
         echo "Commands:"
         echo "  build                    - Build the Docker image"
-        echo "  latest                   - Run latest data scraper once"
+        echo "  historic                 - Run FULL historical scraper (ALL securities, 1 year data)"
+        echo "  latest                   - Run latest data scraper once (recent data only)"
         echo "  continuous [interval]    - Run continuous scraper (default: 60 min)"
         echo "  specific [symbols]       - Run specific securities scraper"
         echo "  interactive              - Run in interactive mode"
@@ -118,6 +131,7 @@ case "$1" in
         echo ""
         echo "Examples:"
         echo "  $0 build"
+        echo "  $0 historic              (WARNING: Takes several hours!)"
         echo "  $0 latest"
         echo "  $0 continuous 30"
         echo "  $0 specific \"NABIL,NICA,SCBL\""

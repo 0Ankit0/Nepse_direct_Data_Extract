@@ -5,6 +5,7 @@ This guide explains how to run the NEPSE scraper in Docker containers for consis
 ## 🐳 Quick Start
 
 ### Build the Image
+
 ```bash
 # Linux/Mac
 ./docker-run.sh build
@@ -17,6 +18,7 @@ docker build -t nepse-scraper:latest .
 ```
 
 ### Run Latest Data Scraper (Once)
+
 ```bash
 # Linux/Mac
 ./docker-run.sh latest
@@ -29,6 +31,7 @@ docker run --rm -v "$(pwd)/data:/app/data" -e SCRAPER_MODE=latest nepse-scraper:
 ```
 
 ### Run Continuous Scraper
+
 ```bash
 # Linux/Mac - every 60 minutes (default)
 ./docker-run.sh continuous
@@ -42,20 +45,21 @@ docker-run.bat continuous 30
 
 ## 📁 Files Overview
 
-| File | Purpose |
-|------|---------|
-| `Dockerfile` | Main container definition |
-| `docker-compose.yml` | Multi-container orchestration |
-| `container_scraper.py` | Container-optimized scraper |
-| `docker-run.sh` | Linux/Mac utility script |
-| `docker-run.bat` | Windows utility script |
-| `.dockerignore` | Docker build exclusions |
+| File                   | Purpose                       |
+| ---------------------- | ----------------------------- |
+| `Dockerfile`           | Main container definition     |
+| `docker-compose.yml`   | Multi-container orchestration |
+| `container_scraper.py` | Container-optimized scraper   |
+| `docker-run.sh`        | Linux/Mac utility script      |
+| `docker-run.bat`       | Windows utility script        |
+| `.dockerignore`        | Docker build exclusions       |
 
 ## 🔧 Container Modes
 
 The container scraper supports multiple modes via environment variables:
 
 ### 1. Latest Mode (One-time scrape)
+
 ```bash
 docker run --rm \
   -v "$(pwd)/data:/app/data" \
@@ -64,6 +68,7 @@ docker run --rm \
 ```
 
 ### 2. Continuous Mode (Scheduled scraping)
+
 ```bash
 docker run -d \
   --name nepse-continuous \
@@ -74,6 +79,7 @@ docker run -d \
 ```
 
 ### 3. Specific Securities Mode
+
 ```bash
 docker run --rm \
   -v "$(pwd)/data:/app/data" \
@@ -83,6 +89,7 @@ docker run --rm \
 ```
 
 ### 4. Interactive Mode
+
 ```bash
 docker run -it --rm \
   -v "$(pwd)/data:/app/data" \
@@ -91,19 +98,20 @@ docker run -it --rm \
 
 ## ⚙️ Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SCRAPER_MODE` | `interactive` | Mode: `latest`, `continuous`, `specific`, `interactive` |
-| `SCRAPER_INTERVAL` | `60` | Interval in minutes for continuous mode |
-| `SCRAPER_DELAY` | `1.0` | Delay in seconds between API requests |
-| `MAX_DATES` | `10` | Maximum number of historical dates to scrape |
-| `SYMBOLS` | `NABIL,NICA,SCBL` | Comma-separated symbols for specific mode |
-| `DATA_FOLDER` | `/app/data` | Container data directory |
-| `TZ` | `Asia/Kathmandu` | Timezone |
+| Variable           | Default           | Description                                             |
+| ------------------ | ----------------- | ------------------------------------------------------- |
+| `SCRAPER_MODE`     | `interactive`     | Mode: `latest`, `continuous`, `specific`, `interactive` |
+| `SCRAPER_INTERVAL` | `60`              | Interval in minutes for continuous mode                 |
+| `SCRAPER_DELAY`    | `1.0`             | Delay in seconds between API requests                   |
+| `MAX_DATES`        | `10`              | Maximum number of historical dates to scrape            |
+| `SYMBOLS`          | `NABIL,NICA,SCBL` | Comma-separated symbols for specific mode               |
+| `DATA_FOLDER`      | `/app/data`       | Container data directory                                |
+| `TZ`               | `Asia/Kathmandu`  | Timezone                                                |
 
 ## 🐙 Docker Compose Usage
 
 ### Start with Docker Compose
+
 ```bash
 # Start the scraper service
 docker-compose up -d nepse-scraper
@@ -119,7 +127,9 @@ docker-compose down
 ```
 
 ### Customize Docker Compose
+
 Edit `docker-compose.yml` to change:
+
 - Environment variables
 - Volume mounts
 - Commands
@@ -135,6 +145,7 @@ Data is persisted using Docker volumes:
 ```
 
 ### Data Structure
+
 ```
 data/
 ├── nepse_latest_20250810_120000.csv
@@ -147,6 +158,7 @@ data/
 ## 🔍 Monitoring and Logs
 
 ### View Container Logs
+
 ```bash
 # Follow logs for running container
 docker logs -f nepse-continuous
@@ -156,6 +168,7 @@ docker logs -f nepse-continuous
 ```
 
 ### Access Container Shell
+
 ```bash
 # Open bash shell in container
 ./docker-run.sh shell
@@ -165,6 +178,7 @@ docker run -it --rm -v "$(pwd)/data:/app/data" nepse-scraper:latest /bin/bash
 ```
 
 ### Health Checks
+
 ```bash
 # Check if container is running
 docker ps --filter ancestor=nepse-scraper
@@ -176,7 +190,9 @@ docker inspect nepse-continuous
 ## 🚀 Production Deployment
 
 ### 1. Resource Limits
+
 Add to docker-compose.yml:
+
 ```yaml
 services:
   nepse-scraper:
@@ -191,6 +207,7 @@ services:
 ```
 
 ### 2. Restart Policies
+
 ```yaml
 restart: unless-stopped
 # or
@@ -198,6 +215,7 @@ restart: always
 ```
 
 ### 3. Network Configuration
+
 ```yaml
 networks:
   nepse-net:
@@ -205,6 +223,7 @@ networks:
 ```
 
 ### 4. Secrets Management
+
 ```yaml
 secrets:
   - nepse_config
@@ -215,20 +234,23 @@ secrets:
 ### Common Issues
 
 1. **Permission Denied on Data Folder**
+
    ```bash
    sudo chown -R 1000:1000 ./data
    ```
 
 2. **Container Exits Immediately**
+
    ```bash
    # Check logs
    docker logs <container-id>
-   
+
    # Run with interactive shell
    docker run -it nepse-scraper:latest /bin/bash
    ```
 
 3. **API Connection Issues**
+
    - Check internet connectivity
    - Verify NEPSE API is accessible
    - Increase `SCRAPER_DELAY` if rate limited
@@ -240,6 +262,7 @@ secrets:
    ```
 
 ### Debug Mode
+
 ```bash
 # Run with debug output
 docker run --rm \
@@ -251,6 +274,7 @@ docker run --rm \
 ## 📈 Scaling
 
 ### Multiple Instances
+
 ```bash
 # Run multiple scrapers for different symbols
 docker run -d --name nepse-banking -e SYMBOLS="NABIL,NICA,EBL" nepse-scraper:latest
@@ -258,22 +282,26 @@ docker run -d --name nepse-insurance -e SYMBOLS="NICL,UNL,PLI" nepse-scraper:lat
 ```
 
 ### Load Balancing
+
 Use Docker Swarm or Kubernetes for advanced orchestration.
 
 ## 🛡️ Security
 
 ### Non-root User
+
 The container runs as a non-root user (`appuser`) for security.
 
 ### Network Security
+
 ```yaml
 networks:
   nepse-net:
     driver: bridge
-    internal: true  # No external access
+    internal: true # No external access
 ```
 
 ### Read-only Filesystem
+
 ```yaml
 read_only: true
 tmpfs:
@@ -284,6 +312,7 @@ tmpfs:
 ## 📋 Utility Scripts Reference
 
 ### Linux/Mac (docker-run.sh)
+
 ```bash
 ./docker-run.sh build                    # Build image
 ./docker-run.sh latest                   # One-time scrape
@@ -296,6 +325,7 @@ tmpfs:
 ```
 
 ### Windows (docker-run.bat)
+
 ```cmd
 docker-run.bat build
 docker-run.bat latest
@@ -310,24 +340,28 @@ docker-run.bat shell
 ## 🎯 Use Cases
 
 ### 1. Development/Testing
+
 ```bash
 # Quick test with latest data
 ./docker-run.sh latest
 ```
 
 ### 2. Production Monitoring
+
 ```bash
 # Continuous scraping every 30 minutes
 ./docker-run.sh continuous 30
 ```
 
 ### 3. Research/Analysis
+
 ```bash
 # Scrape specific high-value securities
 ./docker-run.sh specific "NABIL,NICA,SCBL,EBL,NBL"
 ```
 
 ### 4. Scheduled Jobs
+
 ```bash
 # Add to crontab for daily runs
 0 9 * * 1-5 docker run --rm -v /path/to/data:/app/data -e SCRAPER_MODE=latest nepse-scraper:latest

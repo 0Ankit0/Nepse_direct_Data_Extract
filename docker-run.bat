@@ -5,6 +5,7 @@ echo NEPSE Scraper Docker Utilities (Windows)
 echo ==========================================
 
 if "%1"=="build" goto build
+if "%1"=="historic" goto historic
 if "%1"=="latest" goto latest
 if "%1"=="continuous" goto continuous
 if "%1"=="specific" goto specific
@@ -20,8 +21,14 @@ docker build -t nepse-scraper:latest .
 echo Build complete!
 goto end
 
+:historic
+echo Running FULL historical scraper (ALL securities, 1 year data - takes hours!)
+echo This will scrape 318+ securities with complete historical data
+docker run --rm -v "%cd%/data:/app/data" nepse-scraper:latest python auto_historic_scraper.py
+goto end
+
 :latest
-echo Running latest data scraper...
+echo Running latest data scraper (recent data only)...
 docker run --rm -v "%cd%/data:/app/data" -e SCRAPER_MODE=latest nepse-scraper:latest python container_scraper.py
 goto end
 
@@ -65,11 +72,12 @@ docker run -it --rm -v "%cd%/data:/app/data" nepse-scraper:latest /bin/bash
 goto end
 
 :usage
-echo Usage: %0 {build^|latest^|continuous^|specific^|interactive^|stop^|logs^|shell}
+echo Usage: %0 {build^|historic^|latest^|continuous^|specific^|interactive^|stop^|logs^|shell}
 echo.
 echo Commands:
 echo   build                    - Build the Docker image
-echo   latest                   - Run latest data scraper once
+echo   historic                 - Run FULL historical scraper (ALL securities, 1 year data)
+echo   latest                   - Run latest data scraper once (recent data only)
 echo   continuous [interval]    - Run continuous scraper (default: 60 min)
 echo   specific [symbols]       - Run specific securities scraper
 echo   interactive              - Run in interactive mode
@@ -79,6 +87,7 @@ echo   shell                    - Open shell in container
 echo.
 echo Examples:
 echo   %0 build
+echo   %0 historic              (WARNING: Takes several hours!)
 echo   %0 latest
 echo   %0 continuous 30
 echo   %0 specific "NABIL,NICA,SCBL"
