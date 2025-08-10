@@ -1,0 +1,18 @@
+[Unit]
+Description=NEPSE Historical Data Scraper
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=futsal
+Group=futsal
+WorkingDirectory=/home/futsal/Nepse_direct_Data_Extract
+ExecStart=/home/futsal/Nepse_direct_Data_Extract/docker-run.sh historic
+StandardOutput=journal
+StandardError=journal
+TimeoutStartSec=0
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
