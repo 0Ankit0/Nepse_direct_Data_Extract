@@ -10,7 +10,10 @@ COPY . /app
 
 # Install required Python packages
 COPY requirements.txt ./
+
 RUN pip install --no-cache-dir -r requirements.txt
+# Install Playwright browsers
+RUN playwright install --with-deps
 
 # Set the default command to run the Python script
 CMD ["python", "sharesansar_tsp_scraper.py"]
