@@ -4,7 +4,7 @@ After=docker.service
 Requires=docker.service
 
 [Service]
-Type=oneshot
+Type=simple
 User=futsal
 Group=futsal
 WorkingDirectory=/home/futsal/Nepse_direct_Data_Extract
