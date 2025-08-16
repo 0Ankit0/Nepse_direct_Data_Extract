@@ -61,7 +61,7 @@ def main():
         if is_weekend(current_date):
             current_date += timedelta(days=1)
             continue
-        date_str = current_date.strftime('%Y-%m-%d')
+        date_str = current_date.strftime('%Y_%m_%d')
         csv_path = os.path.join(data_folder, f'{date_str}.csv')
         if not os.path.exists(csv_path):
             print(f'Will scrape {date_str} (saving to {csv_path})')
