@@ -178,21 +178,22 @@ def process_file(conn, filepath):
         data_rows = [row for row in reader]
         if len(data_rows) == 1 and len(data_rows[0]) == 1 and data_rows[0][0].strip().lower() == 'no record found.':
             print('  No record found, skipping import')
-            dest = os.path.join(PROCESSED_FOLDER, os.path.basename(filepath))
-            shutil.move(filepath, dest)
-            print(f'  Moved file to {dest}')
             return False
         cols = [normalize_col(c) for c in cols_raw]
         # ensure table and columns
         ensure_table_and_columns(conn, cols)
-        # filter out empty rows
+        # Only count non-empty data rows (header is not included)
         rows = [row for row in data_rows if any(cell.strip() for cell in row)]
+        num_data_rows = len(rows)
+        # Check if already imported: compare only data rows, not header
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE date = %s", (file_date,))
+            db_count = cur.fetchone()[0]
+        if db_count == num_data_rows:
+            print(f'  Skipping {filepath}: {db_count} rows already present for {file_date}')
+            return False
         inserted = insert_rows(conn, cols, rows, file_date)
         print(f'  Inserted {inserted} rows')
-    # move file to processed
-    dest = os.path.join(PROCESSED_FOLDER, os.path.basename(filepath))
-    shutil.move(filepath, dest)
-    print(f'  Moved file to {dest}')
     return True
 
 
