@@ -68,26 +68,25 @@ def save_table_to_csv(html_content, filename):
     """Parse HTML table and save to CSV"""
     try:
         soup = BeautifulSoup(html_content, 'html.parser')
-        
         # Look for the table in the response
         table = soup.find('table')
         if not table:
             return False
-            
         rows = table.find_all('tr')
         if not rows or len(rows) < 2:
             return False
-            
+        # Check if there is at least one data row (not just header)
+        data_rows = [row for row in rows[1:] if row.find_all(['td'])]
+        if not data_rows:
+            return False
         with open(filename, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             for row in rows:
-                # Get both th and td elements
                 cols = row.find_all(['th', 'td'])
                 row_data = [col.get_text().strip() for col in cols]
-                if row_data:  # Only write non-empty rows
+                if row_data:
                     writer.writerow(row_data)
         return True
-        
     except Exception as e:
         print(f"Error parsing table: {e}")
         return False
