@@ -36,6 +36,12 @@ def save_indices_to_csv(html_content, csv_path):
                 all_data.append(cells)
     if not all_data:
         return False
+    # Check for 'No data found' or 'No Record Found' in any cell of the only data row
+    if len(all_data) == 1:
+        cells = [cell.lower() for cell in all_data[0]]
+        for cell in cells:
+            if 'no data found' in cell or 'no record found' in cell:
+                return False
     df = pd.DataFrame(all_data, columns=headers)
     df.to_csv(csv_path, index=False)
     return True

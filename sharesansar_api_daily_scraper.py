@@ -52,6 +52,16 @@ def save_table_to_csv(html_content, filename):
         rows = table.find_all('tr')
         if not rows or len(rows) < 2:
             return False
+        # Only save if there is at least one valid data row (not just header, not 'No data found' or 'No Record Found')
+        data_rows = [row for row in rows[1:] if row.find_all(['td'])]
+        if not data_rows:
+            return False
+        # Check for 'No data found' or 'No Record Found' in any cell of the only data row
+        if len(data_rows) == 1:
+            cells = [col.get_text(strip=True).lower() for col in data_rows[0].find_all(['td'])]
+            for cell in cells:
+                if 'no data found' in cell or 'no record found' in cell:
+                    return False
         with open(filename, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             for row in rows:
