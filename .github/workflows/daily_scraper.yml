@@ -43,6 +43,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No new indices or sharesansarAPI data to commit."
           else
-            git commit -m "updated indices and sharesansarAPI data for date : $DATE"
+            git commit -m "updated indices and stock data for date : $DATE"
             git push
           fi
