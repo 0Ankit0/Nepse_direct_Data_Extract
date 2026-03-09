@@ -26,8 +26,7 @@ import re
 import sys
 from datetime import datetime
 
-import psycopg2
-from psycopg2 import sql, OperationalError
+import sqlite3
 
 # Configuration
 DATA_FOLDER = 'sharesansarAPI'
@@ -41,69 +40,49 @@ COLUMN_ORDER = [
     'weeks_52_high', 'weeks_52_low'
 ]
 
-# Map to SQL types
 COLUMN_TYPES = {
-    'id': 'SERIAL PRIMARY KEY',
-    'date': 'DATE',
+    'id': 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'date': 'TEXT',
     'symbol': 'TEXT',
-    'conf': 'DECIMAL',
-    'open': 'DECIMAL',
-    'high': 'DECIMAL',
-    'low': 'DECIMAL',
-    'close': 'DECIMAL',
-    'ltp': 'DECIMAL',
-    'close_minus_ltp': 'DECIMAL',
-    'close_minus_ltp_pct': 'DECIMAL',
-    'vwap': 'DECIMAL',
-    'vol': 'DECIMAL',
-    'prev_close': 'DECIMAL',
-    'turnover': 'DECIMAL',
-    'trans': 'DECIMAL',
-    'diff': 'DECIMAL',
-    'range': 'DECIMAL',
-    'diff_pct': 'DECIMAL',
-    'range_pct': 'DECIMAL',
-    'vwap_pct': 'DECIMAL',
-    'weeks_52_high': 'DECIMAL',
-    'weeks_52_low': 'DECIMAL',
+    'conf': 'REAL',
+    'open': 'REAL',
+    'high': 'REAL',
+    'low': 'REAL',
+    'close': 'REAL',
+    'ltp': 'REAL',
+    'close_minus_ltp': 'REAL',
+    'close_minus_ltp_pct': 'REAL',
+    'vwap': 'REAL',
+    'vol': 'REAL',
+    'prev_close': 'REAL',
+    'turnover': 'REAL',
+    'trans': 'REAL',
+    'diff': 'REAL',
+    'range': 'REAL',
+    'diff_pct': 'REAL',
+    'range_pct': 'REAL',
+    'vwap_pct': 'REAL',
+    'weeks_52_high': 'REAL',
+    'weeks_52_low': 'REAL',
 }
 
 TABLE_NAME = 'historicdata'
-
-PGHOST = os.getenv('PGHOST', 'localhost')
-PGPORT = int(os.getenv('PGPORT', 5432))
-PGUSER = os.getenv('PGUSER', 'postgres')
-PGPASSWORD = os.getenv('PGPASSWORD', 'admin')
-PGDATABASE = os.getenv('PGDATABASE', 'Nepse')
-
+SQLITE_DB_PATH = 'historicdata.sqlite'
 os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 
 
 
 def ensure_database_exists():
-    """Connect to Nepse DB, or create it if missing."""
-    try:
-        # Try connecting to Nepse
-        conn = psycopg2.connect(host=PGHOST, port=PGPORT, user=PGUSER, password=PGPASSWORD, dbname=PGDATABASE)
+    """Ensure SQLite DB file exists (no-op for SQLite)."""
+    if not os.path.exists(SQLITE_DB_PATH):
+        conn = sqlite3.connect(SQLITE_DB_PATH)
         conn.close()
-        print(f"Database '{PGDATABASE}' exists.")
-    except OperationalError as e:
-        if f'database "{PGDATABASE}" does not exist' in str(e):
-            print(f"Database '{PGDATABASE}' does not exist. Creating...")
-            # Connect to default 'postgres' DB and create Nepse
-            conn = psycopg2.connect(host=PGHOST, port=PGPORT, user=PGUSER, password=PGPASSWORD, dbname='postgres')
-            try:
-                conn.autocommit = True
-                with conn.cursor() as cur:
-                    cur.execute(sql.SQL('CREATE DATABASE {}').format(sql.Identifier(PGDATABASE)))
-                print(f"Database '{PGDATABASE}' created.")
-            finally:
-                conn.close()
-        else:
-            raise
+        print(f"SQLite database '{SQLITE_DB_PATH}' created.")
+    else:
+        print(f"SQLite database '{SQLITE_DB_PATH}' exists.")
 
 def get_connection():
-    return psycopg2.connect(host=PGHOST, port=PGPORT, user=PGUSER, password=PGPASSWORD, dbname=PGDATABASE)
+    return sqlite3.connect(SQLITE_DB_PATH)
 
 
 def normalize_col(name: str) -> str:
@@ -205,108 +184,65 @@ def parse_date_from_filename(filename: str):
 
 
 def ensure_table_and_columns(conn, columns):
-    """Create table if not exists and add any missing columns."""
-    with conn.cursor() as cur:
-        # Check if table exists
-        cur.execute("""
-            SELECT EXISTS (
-                SELECT FROM information_schema.tables 
-                WHERE table_schema = 'public' AND table_name = %s
-            )
-        """, [TABLE_NAME.lower()])
-        table_exists = cur.fetchone()[0]
-        
-        if not table_exists:
-            # Table doesn't exist, create it with all columns
-            col_defs = []
-            for col in COLUMN_ORDER:
-                if col == 'id':
-                    col_defs.append('id SERIAL PRIMARY KEY')
-                else:
-                    col_defs.append(f'{col} {COLUMN_TYPES[col]}')
-            create_tbl = f"""
-                CREATE TABLE {TABLE_NAME} (
-                    {', '.join(col_defs)}
-                )
-            """
-            cur.execute(create_tbl)
-            print(f"Created table {TABLE_NAME} with all required columns")
-        else:
-            # Table exists, check what columns we have
-            cur.execute("""
-                SELECT column_name FROM information_schema.columns 
-                WHERE table_name = %s AND table_schema = 'public'
-                ORDER BY ordinal_position
-            """, [TABLE_NAME.lower()])
-            existing_columns = [row[0].lower() for row in cur.fetchall()]
-            expected_columns = [col.lower() for col in COLUMN_ORDER]
-            
-            # Rename old columns if present
-            rename_map = {
-                'close_ltp': 'close_minus_ltp',
-                'close_ltp_pct': 'close_minus_ltp_pct',
-            }
-            for old, new in rename_map.items():
-                if old in existing_columns and new not in existing_columns:
-                    print(f"Renaming column {old} to {new}")
-                    cur.execute(f'ALTER TABLE {TABLE_NAME} RENAME COLUMN {old} TO {new}')
-            # Refresh columns after renaming
-            cur.execute("""
-                SELECT column_name FROM information_schema.columns 
-                WHERE table_name = %s AND table_schema = 'public'
-                ORDER BY ordinal_position
-            """, [TABLE_NAME.lower()])
-            existing_columns = [row[0].lower() for row in cur.fetchall()]
-            expected_columns = [col.lower() for col in COLUMN_ORDER]
-
-            # Add missing columns
-            for col in COLUMN_ORDER:
-                if col.lower() not in existing_columns and col != 'id':  # id is SERIAL, don't add manually
-                    col_type = COLUMN_TYPES[col]
-                    print(f"Adding missing column: {col}")
-                    cur.execute(f'ALTER TABLE {TABLE_NAME} ADD COLUMN {col} {col_type}')
-
-            # Remove extra columns that aren't in our expected list
-            for existing_col in existing_columns:
-                if existing_col not in expected_columns:
-                    print(f"Removing extra column: {existing_col}")
-                    cur.execute(f'ALTER TABLE {TABLE_NAME} DROP COLUMN IF EXISTS {existing_col}')
-        
-        conn.commit()
+    """Create table if not exists and add any missing columns (SQLite)."""
+    cur = conn.cursor()
+    # Check if table exists
+    cur.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name=?", (TABLE_NAME,))
+    table_exists = cur.fetchone() is not None
+    if not table_exists:
+        col_defs = []
+        for col in COLUMN_ORDER:
+            col_defs.append(f'{col} {COLUMN_TYPES[col]}')
+        create_tbl = f"CREATE TABLE {TABLE_NAME} ({', '.join(col_defs)})"
+        cur.execute(create_tbl)
+        print(f"Created table {TABLE_NAME} with all required columns")
+    else:
+        # Table exists, check columns
+        cur.execute(f"PRAGMA table_info({TABLE_NAME})")
+        existing_columns = [row[1].lower() for row in cur.fetchall()]
+        expected_columns = [col.lower() for col in COLUMN_ORDER]
+        # Rename old columns if present
+        rename_map = {
+            'close_ltp': 'close_minus_ltp',
+            'close_ltp_pct': 'close_minus_ltp_pct',
+        }
+        # SQLite does not support renaming columns easily, skip for now
+        # Add missing columns
+        for col in COLUMN_ORDER:
+            if col.lower() not in existing_columns and col != 'id':
+                col_type = COLUMN_TYPES[col]
+                print(f"Adding missing column: {col}")
+                cur.execute(f'ALTER TABLE {TABLE_NAME} ADD COLUMN {col} {col_type}')
+        # Remove extra columns: SQLite does not support DROP COLUMN directly, skip
+    conn.commit()
 
 
 def insert_rows(conn, columns, rows, file_date):
     """Insert rows into table. columns is ordered list of column names present in CSV."""
     if not rows:
         return 0
-    with conn.cursor() as cur:
-        all_cols = columns + ['date']
-        col_identifiers = sql.SQL(', ').join(sql.Identifier(c) for c in all_cols)
-        placeholders = sql.SQL(', ').join(sql.Placeholder() for _ in all_cols)
-        insert_sql = sql.SQL('INSERT INTO {table} ({cols}) VALUES ({vals})').format(
-            table=sql.Identifier(TABLE_NAME),
-            cols=col_identifiers,
-            vals=placeholders
-        )
-        count = 0
-        batch = []
-        for r in rows:
-            # pad row if shorter
-            vals = [v if v != '' else None for v in r]
-            if len(vals) < len(columns):
-                vals += [None] * (len(columns) - len(vals))
-            vals.append(file_date)
-            batch.append(vals)
-            # execute in small batches
-            if len(batch) >= 1000:
-                cur.executemany(insert_sql.as_string(conn), batch)
-                count += len(batch)
-                batch = []
-        if batch:
-            cur.executemany(insert_sql.as_string(conn), batch)
+    cur = conn.cursor()
+    all_cols = columns + ['date']
+    col_names = ', '.join(all_cols)
+    placeholders = ', '.join(['?'] * len(all_cols))
+    insert_sql = f'INSERT INTO {TABLE_NAME} ({col_names}) VALUES ({placeholders})'
+    count = 0
+    batch = []
+    for r in rows:
+        vals = [v if v != '' else None for v in r]
+        if len(vals) < len(columns):
+            vals += [None] * (len(columns) - len(vals))
+        vals.append(file_date)
+        batch.append(vals)
+        if len(batch) >= 1000:
+            cur.executemany(insert_sql, batch)
             count += len(batch)
-        conn.commit()
-        return count
+            batch = []
+    if batch:
+        cur.executemany(insert_sql, batch)
+        count += len(batch)
+    conn.commit()
+    return count
 
 
 def process_file(conn, filepath):
@@ -318,12 +254,9 @@ def process_file(conn, filepath):
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
-            # Remove S.No and only use the specified columns
             data_rows = []
             for row in reader:
-                # Only keep the specified columns, skip S.No
                 filtered = {k.strip(): v for k, v in row.items() if k and k.strip() not in ('S.No', 'SNO', 'sno', 'Sno')}
-                # Direct mapping: CSV header to canonical column name
                 mapped = {}
                 header_map = {
                     'Symbol': 'symbol',
@@ -348,49 +281,34 @@ def process_file(conn, filepath):
                     '52 Weeks High': 'weeks_52_high',
                     '52 Weeks Low': 'weeks_52_low',
                 }
-            # Rename old columns if present
-            rename_map = {
-                'close_ltp': 'close_minus_ltp',
-                'close_ltp_pct': 'close_minus_ltp_pct',
-            }
-            for old, new in rename_map.items():
-                if old in existing_columns and new not in existing_columns:
-                    print(f"Renaming column {old} to {new}")
-                    cur.execute(f'ALTER TABLE {TABLE_NAME} RENAME COLUMN {old} TO {new}')
                 for k, v in filtered.items():
                     if k in header_map:
                         mapped[header_map[k]] = v
-                # Only add if Symbol is present
                 if mapped.get('symbol'):
                     data_rows.append(mapped)
             if not data_rows:
                 print('  No valid data rows, skipping')
                 return False
-            # Debug print removed for production
-            # Check for 'No Record Found.' as the only data row
             if len(data_rows) == 1 and list(data_rows[0].values())[0].strip().lower() == 'no record found.':
                 print('  No record found, skipping import')
                 return False
-            # ensure table and columns
             ensure_table_and_columns(conn, COLUMN_ORDER)
             num_data_rows = len(data_rows)
             file_date = parse_date_from_filename(filepath)
-            # Check if already imported: compare only data rows, not header
-            with conn.cursor() as cur:
-                cur.execute(f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE date = %s", (file_date,))
-                db_count = cur.fetchone()[0]
+            cur = conn.cursor()
+            cur.execute(f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE date = ?", (str(file_date),))
+            db_count = cur.fetchone()[0]
             if db_count == num_data_rows:
                 print(f'  Skipping {filepath}: {db_count} rows already present for {file_date}')
                 return False
-            # Prepare rows for insert
             rows_to_insert = []
             for row in data_rows:
                 vals = []
                 for col in COLUMN_ORDER:
                     if col == 'id':
-                        continue  # SERIAL PRIMARY KEY
+                        continue
                     elif col == 'date':
-                        vals.append(file_date)
+                        vals.append(str(file_date))
                     elif col == 'symbol':
                         vals.append(row.get('symbol', None))
                     else:
@@ -406,18 +324,13 @@ def process_file(conn, filepath):
             inserted = 0
             if rows_to_insert:
                 try:
-                    with conn.cursor() as cur:
-                        col_names = [c for c in COLUMN_ORDER if c not in ('id',)]
-                        col_identifiers = sql.SQL(', ').join(sql.Identifier(c) for c in col_names)
-                        placeholders = sql.SQL(', ').join(sql.Placeholder() for _ in col_names)
-                        insert_sql = sql.SQL('INSERT INTO {table} ({cols}) VALUES ({vals})').format(
-                            table=sql.Identifier(TABLE_NAME),
-                            cols=col_identifiers,
-                            vals=placeholders
-                        )
-                        cur.executemany(insert_sql.as_string(conn), rows_to_insert)
-                        conn.commit()
-                        inserted = len(rows_to_insert)
+                    col_names = [c for c in COLUMN_ORDER if c != 'id']
+                    col_str = ', '.join(col_names)
+                    placeholders = ', '.join(['?'] * len(col_names))
+                    insert_sql = f'INSERT INTO {TABLE_NAME} ({col_str}) VALUES ({placeholders})'
+                    cur.executemany(insert_sql, rows_to_insert)
+                    conn.commit()
+                    inserted = len(rows_to_insert)
                 except Exception as e:
                     conn.rollback()
                     print(f'  Error inserting rows for file {filepath}: {e}')
@@ -431,18 +344,16 @@ def process_file(conn, filepath):
         return False
 
 
-def main():
 
-    # Ensure Nepse database exists
+def main():
+    # Ensure SQLite database exists
     ensure_database_exists()
 
-    # Find csv files and extract dates
     files = [os.path.join(DATA_FOLDER, f) for f in os.listdir(DATA_FOLDER) if f.lower().endswith('.csv')]
     if not files:
         print('No CSV files found in', DATA_FOLDER)
         return
 
-    # Map: date -> filepath
     date_file_map = {}
     for fp in files:
         date = parse_date_from_filename(fp)
@@ -453,31 +364,25 @@ def main():
         print('No valid dated CSV files found.')
         return
 
-    # Sort dates descending
     sorted_dates = sorted(date_file_map.keys(), reverse=True)
 
     conn = get_connection()
     try:
-        # Ensure table and columns exist before querying
         ensure_table_and_columns(conn, COLUMN_ORDER)
         for d in sorted_dates:
-            # Stop if we reach 2020-01-01
             if d <= datetime(2020, 1, 1).date():
                 print('Reached 2020-01-01, stopping.')
                 break
-            # Check if date exists in DB
-            with conn.cursor() as cur:
-                cur.execute(f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE date = %s", (d,))
-                db_count = cur.fetchone()[0]
+            cur = conn.cursor()
+            cur.execute(f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE date = ?", (str(d),))
+            db_count = cur.fetchone()[0]
             if db_count > 0:
                 print(f"Data for {d} already exists in DB. Stopping.")
                 break
-            # Not in DB, import
             print(f"Importing data for {d} from {date_file_map[d]}")
             ok = process_file(conn, date_file_map[d])
             if not ok:
                 print(f"Failed to import {date_file_map[d]}")
-            # Continue to previous date
         print('Done.')
     finally:
         conn.close()
