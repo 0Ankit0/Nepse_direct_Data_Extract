@@ -40,8 +40,8 @@ jobs:
             python import_today_data.py
           fi
 
-      - name: Run company list scraper
-        run: python scrape_company_listings.py
+      # - name: Run company list scraper
+      #   run: python scrape_company_listings.py
 
       - name: Commit and push updated database if changed
         run: |
