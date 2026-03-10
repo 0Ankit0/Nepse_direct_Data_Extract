@@ -18,30 +18,37 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.14"
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+        run: uv sync
 
       - name: Run daily sharesansar API scraper
-        run: python sharesansar_api_daily_scraper.py
+        run: uv run python scripts/sharesansar_api_daily_scraper.py
 
       - name: Run daily sharesansar indices scraper
-        run: python sharesansar_indices_daily_scraper.py
+        run: uv run python scripts/sharesansar_indices_daily_scraper.py
 
       - name: Import today's data to database if files exist
         run: |
           if [ -f sharesansarAPI/$(date +%Y_%m_%d).csv ] || [ -f Indices/$(date +%Y_%m_%d).csv ]; then
-            python import_today_data.py
+            uv run python scripts/import_today_data.py
+          fi
+
+      - name: Compute indicators for today if new data was imported
+        run: |
+          if [ -f sharesansarAPI/$(date +%Y_%m_%d).csv ]; then
+            uv run python scripts/compute_indicators_daily.py
           fi
 
       # - name: Run company list scraper
-      #   run: python scrape_company_listings.py
+      #   run: uv run python scripts/scrape_company_listings.py
 
       - name: Commit and push updated database if changed
         run: |
