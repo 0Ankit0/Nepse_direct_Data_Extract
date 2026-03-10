@@ -12,6 +12,17 @@ jobs:
     defaults:
       run:
         working-directory: ./
+    env:
+      # Preferred: single Supabase connection string (copy Session-mode pooler URL
+      # from Supabase dashboard → Project Settings → Database → Connection string)
+      # Format: postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # Fallback individual params (used only when DATABASE_URL is not set)
+      PGHOST: ${{ secrets.SUPABASE_DB_HOST }}
+      PGPORT: ${{ secrets.SUPABASE_DB_PORT }}
+      PGDATABASE: ${{ secrets.SUPABASE_DB_NAME }}
+      PGUSER: ${{ secrets.SUPABASE_DB_USER }}
+      PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -50,15 +61,15 @@ jobs:
       # - name: Run company list scraper
       #   run: uv run python scripts/scrape_company_listings.py
 
-      - name: Commit and push updated database if changed
+      - name: Commit and push scraped CSV data if changed
         run: |
           git config --global user.name "0Ankit0"
           git config --global user.email "ankitpaudel.1373@gmail.com"
           DATE=$(date +"%Y-%m-%d")
-          git add . || true
+          git add sharesansarAPI/ Indices/ Company_listings.json || true
           if git diff --cached --quiet; then
             echo "No new indices or sharesansarAPI data to commit."
           else
-            git commit -m "updated indices and stock data along with database for date : $DATE"
+            git commit -m "updated indices and stock data for date : $DATE"
             git push
           fi

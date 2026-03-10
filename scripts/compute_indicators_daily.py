@@ -16,13 +16,12 @@ Run: uv run python scripts/compute_indicators_daily.py
 
 import os
 import sys
-import sqlite3
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(__file__))
 
+from db import get_connection
 from _indicators_core import (
-    SQLITE_DB_PATH,
     SOURCE_TABLE,
     INDICATORS_TABLE,
     ensure_indicators_table,
@@ -34,20 +33,15 @@ from _indicators_core import (
 
 
 def main():
-    if not os.path.exists(SQLITE_DB_PATH):
-        print(f"Database '{SQLITE_DB_PATH}' not found. Run import scripts first.")
-        sys.exit(1)
-
     today = datetime.now().strftime('%Y-%m-%d')
     print(f"Running daily indicator computation for {today}...")
 
-    conn = sqlite3.connect(SQLITE_DB_PATH)
+    conn = get_connection()
     try:
         ensure_indicators_table(conn)
 
-        # Check today's data exists in historicdata
         cur = conn.cursor()
-        cur.execute(f"SELECT COUNT(*) FROM {SOURCE_TABLE} WHERE date = ?", (today,))
+        cur.execute(f"SELECT COUNT(*) FROM {SOURCE_TABLE} WHERE date = %s", (today,))
         count = cur.fetchone()[0]
         if count == 0:
             print(f"No stock data found for {today} in '{SOURCE_TABLE}'. Nothing to compute.")

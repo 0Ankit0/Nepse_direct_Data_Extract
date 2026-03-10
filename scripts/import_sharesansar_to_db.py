@@ -1,20 +1,19 @@
 """
-Import CSV files from `sharesansarAPI` into PostgreSQL database `Nepse`.
+Import CSV files from `sharesansarAPI` into Supabase (PostgreSQL).
 
 Behavior:
 - Scans `sharesansarAPI` for `.csv` files
 - Parses header row to detect columns
-- Ensures a table `sharesansar_api` exists and has columns matching the CSV headers (TEXT)
-- Adds a `date` column (DATE) and populates it with the date parsed from the filename (supports YYYY_MM_DD or YYYY-MM-DD)
+- Ensures a table `historicdata` exists with the required schema
+- Adds a `date` column and populates it from the filename (YYYY_MM_DD or YYYY-MM-DD)
 - Inserts all rows from the CSV into the table
-- Moves processed CSV files to `sharesansarAPI/processed/`
 
-Configuration via environment variables:
-- PGHOST (default: localhost)
-- PGPORT (default: 5432)
-- PGUSER
-- PGPASSWORD
-- PGDATABASE (default: Nepse)
+Configuration via environment variables (GitHub Actions secrets):
+- PGHOST      - Supabase database host
+- PGPORT      - Database port (default: 5432)
+- PGUSER      - Database user
+- PGPASSWORD  - Database password
+- PGDATABASE  - Database name (default: postgres)
 
 Run: python import_sharesansar_to_db.py
 """
@@ -26,7 +25,7 @@ import re
 import sys
 from datetime import datetime
 
-import sqlite3
+import psycopg2
 
 # Configuration
 DATA_FOLDER = 'sharesansarAPI'
@@ -41,7 +40,7 @@ COLUMN_ORDER = [
 ]
 
 COLUMN_TYPES = {
-    'id': 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'id': 'BIGSERIAL PRIMARY KEY',
     'date': 'TEXT',
     'symbol': 'TEXT',
     'conf': 'REAL',
@@ -67,22 +66,14 @@ COLUMN_TYPES = {
 }
 
 TABLE_NAME = 'historicdata'
-SQLITE_DB_PATH = 'historicdata.sqlite'
 os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 
 
 
-def ensure_database_exists():
-    """Ensure SQLite DB file exists (no-op for SQLite)."""
-    if not os.path.exists(SQLITE_DB_PATH):
-        conn = sqlite3.connect(SQLITE_DB_PATH)
-        conn.close()
-        print(f"SQLite database '{SQLITE_DB_PATH}' created.")
-    else:
-        print(f"SQLite database '{SQLITE_DB_PATH}' exists.")
-
 def get_connection():
-    return sqlite3.connect(SQLITE_DB_PATH)
+    sys.path.insert(0, os.path.dirname(__file__))
+    from db import get_connection as _get_conn
+    return _get_conn()
 
 
 def normalize_col(name: str) -> str:
@@ -184,10 +175,13 @@ def parse_date_from_filename(filename: str):
 
 
 def ensure_table_and_columns(conn, columns):
-    """Create table if not exists and add any missing columns (SQLite)."""
+    """Create table if not exists and add any missing columns (PostgreSQL)."""
     cur = conn.cursor()
-    # Check if table exists
-    cur.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name=?", (TABLE_NAME,))
+    cur.execute(
+        "SELECT table_name FROM information_schema.tables "
+        "WHERE table_schema='public' AND table_name=%s",
+        (TABLE_NAME,)
+    )
     table_exists = cur.fetchone() is not None
     if not table_exists:
         col_defs = []
@@ -197,23 +191,17 @@ def ensure_table_and_columns(conn, columns):
         cur.execute(create_tbl)
         print(f"Created table {TABLE_NAME} with all required columns")
     else:
-        # Table exists, check columns
-        cur.execute(f"PRAGMA table_info({TABLE_NAME})")
-        existing_columns = [row[1].lower() for row in cur.fetchall()]
-        expected_columns = [col.lower() for col in COLUMN_ORDER]
-        # Rename old columns if present
-        rename_map = {
-            'close_ltp': 'close_minus_ltp',
-            'close_ltp_pct': 'close_minus_ltp_pct',
-        }
-        # SQLite does not support renaming columns easily, skip for now
-        # Add missing columns
+        cur.execute(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema='public' AND table_name=%s",
+            (TABLE_NAME,)
+        )
+        existing_columns = [row[0].lower() for row in cur.fetchall()]
         for col in COLUMN_ORDER:
             if col.lower() not in existing_columns and col != 'id':
                 col_type = COLUMN_TYPES[col]
                 print(f"Adding missing column: {col}")
                 cur.execute(f'ALTER TABLE {TABLE_NAME} ADD COLUMN {col} {col_type}')
-        # Remove extra columns: SQLite does not support DROP COLUMN directly, skip
     conn.commit()
 
 
@@ -224,7 +212,7 @@ def insert_rows(conn, columns, rows, file_date):
     cur = conn.cursor()
     all_cols = columns + ['date']
     col_names = ', '.join(all_cols)
-    placeholders = ', '.join(['?'] * len(all_cols))
+    placeholders = ', '.join(['%s'] * len(all_cols))
     insert_sql = f'INSERT INTO {TABLE_NAME} ({col_names}) VALUES ({placeholders})'
     count = 0
     batch = []
@@ -296,7 +284,7 @@ def process_file(conn, filepath):
             num_data_rows = len(data_rows)
             file_date = parse_date_from_filename(filepath)
             cur = conn.cursor()
-            cur.execute(f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE date = ?", (str(file_date),))
+            cur.execute(f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE date = %s", (str(file_date),))
             db_count = cur.fetchone()[0]
             if db_count == num_data_rows:
                 print(f'  Skipping {filepath}: {db_count} rows already present for {file_date}')
@@ -326,7 +314,7 @@ def process_file(conn, filepath):
                 try:
                     col_names = [c for c in COLUMN_ORDER if c != 'id']
                     col_str = ', '.join(col_names)
-                    placeholders = ', '.join(['?'] * len(col_names))
+                    placeholders = ', '.join(['%s'] * len(col_names))
                     insert_sql = f'INSERT INTO {TABLE_NAME} ({col_str}) VALUES ({placeholders})'
                     cur.executemany(insert_sql, rows_to_insert)
                     conn.commit()
@@ -346,9 +334,6 @@ def process_file(conn, filepath):
 
 
 def main():
-    # Ensure SQLite database exists
-    ensure_database_exists()
-
     files = [os.path.join(DATA_FOLDER, f) for f in os.listdir(DATA_FOLDER) if f.lower().endswith('.csv')]
     if not files:
         print('No CSV files found in', DATA_FOLDER)
@@ -374,7 +359,7 @@ def main():
                 print('Reached 2020-01-01, stopping.')
                 break
             cur = conn.cursor()
-            cur.execute(f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE date = ?", (str(d),))
+            cur.execute(f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE date = %s", (str(d),))
             db_count = cur.fetchone()[0]
             if db_count > 0:
                 print(f"Data for {d} already exists in DB. Stopping.")

@@ -1,1 +1,15 @@
+# SQLite database (data now lives in Supabase)
 historicdata.sqlite
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+.env
+
+# uv
+.python-version
+
+# OS
+.DS_Store

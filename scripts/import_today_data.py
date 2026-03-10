@@ -1,12 +1,14 @@
 import os
+import sys
 from datetime import datetime
-import sqlite3
+
+sys.path.insert(0, os.path.dirname(__file__))
+from db import get_connection
 from import_sharesansar_to_db import process_file as process_api_file, ensure_table_and_columns as ensure_api_table, COLUMN_ORDER as API_COLUMN_ORDER
 from import_indices_to_db import process_file as process_indices_file, ensure_table_and_columns as ensure_indices_table, COLUMN_ORDER as INDICES_COLUMN_ORDER
 
 DATA_FOLDER = 'sharesansarAPI'
 INDICES_FOLDER = 'Indices'
-SQLITE_DB_PATH = 'historicdata.sqlite'
 
 # Today's date in YYYY_MM_DD and YYYY-MM-DD
 now = datetime.now()
@@ -28,7 +30,7 @@ for fname in os.listdir(INDICES_FOLDER):
         indices_file = os.path.join(INDICES_FOLDER, fname)
         break
 
-conn = sqlite3.connect(SQLITE_DB_PATH)
+conn = get_connection()
 try:
     # Import API file if found
     if api_file:

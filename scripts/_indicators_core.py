@@ -8,12 +8,15 @@ Used by:
 
 import os
 import sys
-import sqlite3
+import psycopg2
+import psycopg2.extensions
 
 import pandas as pd
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(__file__))
+
+from db import get_connection
 
 from indicators.momentum.rsi import rsi
 from indicators.momentum.macd import macd
@@ -30,13 +33,12 @@ from indicators.volatility.ichimoku import ichimoku
 from indicators.volatility.exits import calculate_chandelier_exit
 from indicators.volume.volume_flow import calculate_obv, calculate_mfi, calculate_kvo
 
-SQLITE_DB_PATH = 'historicdata.sqlite'
 SOURCE_TABLE = 'historicdata'
 INDICATORS_TABLE = 'indicators'
 
 COLUMN_TYPES = {
     # identifiers
-    'id':                   'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'id':                   'BIGSERIAL PRIMARY KEY',
     'date':                 'TEXT NOT NULL',
     'symbol':               'TEXT NOT NULL',
     # momentum
@@ -87,11 +89,12 @@ COLUMN_ORDER = list(COLUMN_TYPES.keys())
 _UPSERT_CONFLICT_COLS = '(date, symbol)'
 
 
-def ensure_indicators_table(conn: sqlite3.Connection):
+def ensure_indicators_table(conn: psycopg2.extensions.connection):
     """Create indicators table if it does not exist; add any missing columns."""
     cur = conn.cursor()
     cur.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+        "SELECT table_name FROM information_schema.tables "
+        "WHERE table_schema='public' AND table_name=%s",
         (INDICATORS_TABLE,)
     )
     if cur.fetchone() is None:
@@ -103,8 +106,12 @@ def ensure_indicators_table(conn: sqlite3.Connection):
         )
         print(f"Created table '{INDICATORS_TABLE}'")
     else:
-        cur.execute(f'PRAGMA table_info({INDICATORS_TABLE})')
-        existing = {row[1].lower() for row in cur.fetchall()}
+        cur.execute(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema='public' AND table_name=%s",
+            (INDICATORS_TABLE,)
+        )
+        existing = {row[0].lower() for row in cur.fetchall()}
         added = []
         for col, typ in COLUMN_TYPES.items():
             if col not in existing and col != 'id':
@@ -115,23 +122,22 @@ def ensure_indicators_table(conn: sqlite3.Connection):
     conn.commit()
 
 
-def get_existing_dates(conn: sqlite3.Connection) -> set:
+def get_existing_dates(conn: psycopg2.extensions.connection) -> set:
     cur = conn.cursor()
     cur.execute(f'SELECT DISTINCT date FROM {INDICATORS_TABLE}')
     return {row[0] for row in cur.fetchall()}
 
 
-def get_incomplete_dates(conn: sqlite3.Connection) -> set:
-    """Return dates that exist in indicators but have NULLs in any indicator column.
-
-    Used to detect rows that need backfilling after new columns are added.
-    """
-    # Check a representative column from each category; if any is NULL, the row is incomplete
+def get_incomplete_dates(conn: psycopg2.extensions.connection) -> set:
+    """Return dates that exist in indicators but have NULLs in any indicator column."""
     probe_cols = ['rsi_14', 'stoch_k', 'cci_20', 'williams_r', 'sma_200', 'ema_9', 'ema_200']
     cur = conn.cursor()
-    # Only check probe columns that actually exist
-    cur.execute(f'PRAGMA table_info({INDICATORS_TABLE})')
-    existing = {row[1] for row in cur.fetchall()}
+    cur.execute(
+        "SELECT column_name FROM information_schema.columns "
+        "WHERE table_schema='public' AND table_name=%s",
+        (INDICATORS_TABLE,)
+    )
+    existing = {row[0] for row in cur.fetchall()}
     checks = [f'{col} IS NULL' for col in probe_cols if col in existing]
     if not checks:
         return set()
@@ -140,7 +146,7 @@ def get_incomplete_dates(conn: sqlite3.Connection) -> set:
     return {row[0] for row in cur.fetchall()}
 
 
-def load_historicdata(conn: sqlite3.Connection) -> pd.DataFrame:
+def load_historicdata(conn: psycopg2.extensions.connection) -> pd.DataFrame:
     """Load all rows from historicdata, sorted by symbol then date."""
     df = pd.read_sql_query(
         f'SELECT date, symbol, open, high, low, close, ltp, vol '
@@ -227,24 +233,19 @@ def compute_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
-def insert_indicators(conn: sqlite3.Connection, df: pd.DataFrame, target_dates: set) -> int:
-    """Upsert computed indicator rows for target_dates.
-
-    Uses INSERT OR REPLACE so that rows with newly added columns (NULL from
-    ALTER TABLE) get updated when reprocessed by compute_indicators.py.
-    """
+def insert_indicators(conn: psycopg2.extensions.connection, df: pd.DataFrame, target_dates: set) -> int:
+    """Upsert computed indicator rows for target_dates."""
     df_new = df[df['date'].isin(target_dates)].copy()
     if df_new.empty:
         print("  No rows to insert.")
         return 0
 
     cols = [c for c in COLUMN_ORDER if c != 'id']
-    col_str     = ', '.join(cols)
-    placeholders = ', '.join(['?'] * len(cols))
+    col_str      = ', '.join(cols)
+    placeholders = ', '.join(['%s'] * len(cols))
 
-    # ON CONFLICT ... DO UPDATE backfills all indicator columns without changing id
     update_set = ', '.join(
-        f'{c}=excluded.{c}' for c in cols if c not in ('date', 'symbol')
+        f'{c}=EXCLUDED.{c}' for c in cols if c not in ('date', 'symbol')
     )
     upsert_sql = (
         f'INSERT INTO {INDICATORS_TABLE} ({col_str}) VALUES ({placeholders}) '

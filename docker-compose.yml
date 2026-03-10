@@ -5,4 +5,13 @@ services:
     container_name: nepse_scraper
     volumes:
       - .:/app
+    environment:
+      # Preferred: single connection string pointing to Supabase session pooler (IPv4)
+      - DATABASE_URL=${DATABASE_URL}
+      # Fallback individual params
+      - PGHOST=${PGHOST}
+      - PGPORT=${PGPORT:-5432}
+      - PGDATABASE=${PGDATABASE:-postgres}
+      - PGUSER=${PGUSER}
+      - PGPASSWORD=${PGPASSWORD}
     command: ["python", "sharesansar_tsp_scraper.py"]

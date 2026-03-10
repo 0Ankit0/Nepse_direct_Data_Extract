@@ -2,11 +2,14 @@ import os
 import csv
 import re
 from datetime import datetime
-import sqlite3
+import sys
+import psycopg2
+
+sys.path.insert(0, os.path.dirname(__file__))
+from db import get_connection
 
 # Configuration
 INDICES_FOLDER = 'Indices'
-SQLITE_DB_PATH = 'historicdata.sqlite'
 TABLE_NAME = 'indices'
 
 # Columns based on your header
@@ -15,7 +18,7 @@ COLUMN_ORDER = [
 ]
 
 COLUMN_TYPES = {
-    'id': 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'id': 'BIGSERIAL PRIMARY KEY',
     'date': 'TEXT',
     'index': 'TEXT',
     'current': 'REAL',
@@ -37,7 +40,11 @@ def parse_date_from_filename(filename: str):
 
 def ensure_table_and_columns(conn):
     cur = conn.cursor()
-    cur.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name=?", (TABLE_NAME,))
+    cur.execute(
+        "SELECT table_name FROM information_schema.tables "
+        "WHERE table_schema='public' AND table_name=%s",
+        (TABLE_NAME,)
+    )
     table_exists = cur.fetchone() is not None
     if not table_exists:
         col_defs = []
@@ -47,8 +54,12 @@ def ensure_table_and_columns(conn):
         cur.execute(create_tbl)
         print(f"Created table {TABLE_NAME} with all required columns")
     else:
-        cur.execute(f"PRAGMA table_info({TABLE_NAME})")
-        existing_columns = [row[1].lower() for row in cur.fetchall()]
+        cur.execute(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema='public' AND table_name=%s",
+            (TABLE_NAME,)
+        )
+        existing_columns = [row[0].lower() for row in cur.fetchall()]
         for col in COLUMN_ORDER:
             if col.lower() not in existing_columns and col != 'id':
                 col_type = COLUMN_TYPES[col]
@@ -81,7 +92,7 @@ def process_file(conn, filepath):
                 return False
             ensure_table_and_columns(conn)
             cur = conn.cursor()
-            cur.execute(f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE date = ?", (str(file_date),))
+            cur.execute(f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE date = %s", (str(file_date),))
             db_count = cur.fetchone()[0]
             if db_count == len(data_rows):
                 print(f'  Skipping {filepath}: {db_count} rows already present for {file_date}')
@@ -107,7 +118,7 @@ def process_file(conn, filepath):
             if rows_to_insert:
                 col_names = [c for c in COLUMN_ORDER if c != 'id']
                 col_str = ', '.join([f'"{c}"' for c in col_names])
-                placeholders = ', '.join(['?'] * len(col_names))
+                placeholders = ', '.join(['%s'] * len(col_names))
                 insert_sql = f'INSERT INTO {TABLE_NAME} ({col_str}) VALUES ({placeholders})'
                 cur.executemany(insert_sql, rows_to_insert)
                 conn.commit()
@@ -132,12 +143,12 @@ def main():
         print('No valid dated CSV files found.')
         return
     sorted_dates = sorted(date_file_map.keys(), reverse=True)
-    conn = sqlite3.connect(SQLITE_DB_PATH)
+    conn = get_connection()
     try:
         ensure_table_and_columns(conn)
         for d in sorted_dates:
             cur = conn.cursor()
-            cur.execute(f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE date = ?", (str(d),))
+            cur.execute(f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE date = %s", (str(d),))
             db_count = cur.fetchone()[0]
             if db_count > 0:
                 print(f"Data for {d} already exists in DB. Skipping.")

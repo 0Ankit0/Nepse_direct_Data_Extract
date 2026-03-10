@@ -15,12 +15,11 @@ Run: uv run python scripts/compute_indicators.py
 
 import os
 import sys
-import sqlite3
 
 sys.path.insert(0, os.path.dirname(__file__))
 
+from db import get_connection
 from _indicators_core import (
-    SQLITE_DB_PATH,
     ensure_indicators_table,
     get_existing_dates,
     get_incomplete_dates,
@@ -31,11 +30,7 @@ from _indicators_core import (
 
 
 def main():
-    if not os.path.exists(SQLITE_DB_PATH):
-        print(f"Database '{SQLITE_DB_PATH}' not found. Run import scripts first.")
-        sys.exit(1)
-
-    conn = sqlite3.connect(SQLITE_DB_PATH)
+    conn = get_connection()
     try:
         ensure_indicators_table(conn)
         existing_dates = get_existing_dates(conn)
