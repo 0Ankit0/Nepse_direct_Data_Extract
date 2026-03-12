@@ -362,8 +362,8 @@ def main():
             cur.execute(f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE date = %s", (str(d),))
             db_count = cur.fetchone()[0]
             if db_count > 0:
-                print(f"Data for {d} already exists in DB. Stopping.")
-                break
+                print(f"Data for {d} already exists in DB. Skipping.")
+                continue
             print(f"Importing data for {d} from {date_file_map[d]}")
             ok = process_file(conn, date_file_map[d])
             if not ok:
