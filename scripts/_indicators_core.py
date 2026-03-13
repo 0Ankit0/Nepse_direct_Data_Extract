@@ -173,62 +173,77 @@ def compute_all_indicators(df: pd.DataFrame) -> pd.DataFrame:
     result = df[['date', 'symbol']].copy()
 
     # ── Momentum ──────────────────────────────────────────────────────────────
-    result['rsi_14'] = rsi(df, period=14)
+    def assign_indicator(col, values):
+        # values can be pd.Series, np.ndarray, or scalar
+        if hasattr(values, 'values'):
+            values = values.values
+        if hasattr(values, 'shape') and len(values.shape) == 1 and values.shape[0] == len(result):
+            result[col] = values
+        elif isinstance(values, (list, np.ndarray)) and len(values) == len(result):
+            result[col] = values
+        else:
+            # fallback: fill with NaN or broadcast scalar
+            if np.isscalar(values):
+                result[col] = np.full(len(result), values)
+            else:
+                result[col] = np.full(len(result), np.nan)
+
+    assign_indicator('rsi_14', rsi(df, period=14))
 
     _macd_line, _macd_signal, _macd_hist = macd(df)
-    result['macd_line']   = _macd_line.values
-    result['macd_signal'] = _macd_signal.values
-    result['macd_hist']   = _macd_hist.values
+    assign_indicator('macd_line', _macd_line)
+    assign_indicator('macd_signal', _macd_signal)
+    assign_indicator('macd_hist', _macd_hist)
 
     _stoch_k, _stoch_d = stochastic(df, k_period=14, d_period=3)
-    result['stoch_k'] = _stoch_k.values
-    result['stoch_d'] = _stoch_d.values
+    assign_indicator('stoch_k', _stoch_k)
+    assign_indicator('stoch_d', _stoch_d)
 
-    result['cci_20']     = cci(df, period=20).values
-    result['williams_r'] = williams_r(df, period=14).values
-    result['momentum_5'] = momentum(df, period=5)
+    assign_indicator('cci_20', cci(df, period=20))
+    assign_indicator('williams_r', williams_r(df, period=14))
+    assign_indicator('momentum_5', momentum(df, period=5))
 
     # ── Trend – Moving Averages ───────────────────────────────────────────────
-    result['sma_5']   = sma(df, period=5)
-    result['sma_10']  = sma(df, period=10)
-    result['sma_20']  = sma(df, period=20)
-    result['sma_50']  = sma(df, period=50)
-    result['sma_200'] = sma(df, period=200)
-    result['ema_9']   = ema(df, period=9)
-    result['ema_12']  = ema(df, period=12)
-    result['ema_26']  = ema(df, period=26)
-    result['ema_200'] = ema(df, period=200)
+    assign_indicator('sma_5', sma(df, period=5))
+    assign_indicator('sma_10', sma(df, period=10))
+    assign_indicator('sma_20', sma(df, period=20))
+    assign_indicator('sma_50', sma(df, period=50))
+    assign_indicator('sma_200', sma(df, period=200))
+    assign_indicator('ema_9', ema(df, period=9))
+    assign_indicator('ema_12', ema(df, period=12))
+    assign_indicator('ema_26', ema(df, period=26))
+    assign_indicator('ema_200', ema(df, period=200))
 
     # ── Trend – Directional / Strength ───────────────────────────────────────
     adx_df = calculate_adx(df, window=14)
-    result['adx_14']   = adx_df['adx'].values
-    result['plus_di']  = adx_df['plus_di'].values
-    result['minus_di'] = adx_df['minus_di'].values
+    assign_indicator('adx_14', adx_df['adx'])
+    assign_indicator('plus_di', adx_df['plus_di'])
+    assign_indicator('minus_di', adx_df['minus_di'])
 
-    result['slope_20']     = calculate_slope(df, window=20)
-    result['acceleration'] = calculate_acceleration(df)
+    assign_indicator('slope_20', calculate_slope(df, window=20))
+    assign_indicator('acceleration', calculate_acceleration(df))
 
     # ── Volatility ────────────────────────────────────────────────────────────
-    result['atr_14'] = atr(df, period=14).values
+    assign_indicator('atr_14', atr(df, period=14))
 
     _bb_upper, _bb_lower = bollinger_bands(df, period=20)
-    result['bb_upper'] = _bb_upper.values
-    result['bb_lower'] = _bb_lower.values
+    assign_indicator('bb_upper', _bb_upper)
+    assign_indicator('bb_lower', _bb_lower)
 
     _ich_conv, _ich_base, _ich_span_a, _ich_span_b = ichimoku(df)
-    result['ichimoku_conversion'] = _ich_conv.values
-    result['ichimoku_base']       = _ich_base.values
-    result['ichimoku_span_a']     = _ich_span_a.values
-    result['ichimoku_span_b']     = _ich_span_b.values
+    assign_indicator('ichimoku_conversion', _ich_conv)
+    assign_indicator('ichimoku_base', _ich_base)
+    assign_indicator('ichimoku_span_a', _ich_span_a)
+    assign_indicator('ichimoku_span_b', _ich_span_b)
 
     _chan_df = calculate_chandelier_exit(df, period=22)
-    result['chandelier_long']  = _chan_df['chandelier_long'].values
-    result['chandelier_short'] = _chan_df['chandelier_short'].values
+    assign_indicator('chandelier_long', _chan_df['chandelier_long'])
+    assign_indicator('chandelier_short', _chan_df['chandelier_short'])
 
     # ── Volume ────────────────────────────────────────────────────────────────
-    result['obv']    = calculate_obv(df).values
-    result['mfi_14'] = calculate_mfi(df, period=14).values
-    result['kvo']    = calculate_kvo(df).values
+    assign_indicator('obv', calculate_obv(df))
+    assign_indicator('mfi_14', calculate_mfi(df, period=14))
+    assign_indicator('kvo', calculate_kvo(df))
 
     return result
 
