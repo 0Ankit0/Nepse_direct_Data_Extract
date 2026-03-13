@@ -269,3 +269,35 @@ def insert_indicators(conn: psycopg2.extensions.connection, df: pd.DataFrame, ta
     cur.executemany(upsert_sql, rows)
     conn.commit()
     return len(rows)
+
+
+def compute_and_insert_indicators_incremental(
+    conn: psycopg2.extensions.connection,
+    df: pd.DataFrame,
+    target_dates: set,
+) -> int:
+    """Compute indicators per symbol and insert incrementally.
+
+    This keeps memory usage lower and ensures rows are inserted throughout the
+    run rather than only after processing the complete dataset.
+    """
+    symbols = sorted(df['symbol'].dropna().unique())
+    total_symbols = len(symbols)
+    total_inserted = 0
+
+    print(f"  Incremental mode: processing {total_symbols} symbols...")
+    for idx, symbol in enumerate(symbols, start=1):
+        df_symbol = df[df['symbol'] == symbol].copy()
+        if df_symbol.empty:
+            continue
+
+        result_symbol = compute_all_indicators(df_symbol)
+        inserted = insert_indicators(conn, result_symbol, target_dates)
+        total_inserted += inserted
+
+        if inserted > 0:
+            print(f"  [{idx}/{total_symbols}] Inserted {inserted} row(s) for {symbol}")
+        elif idx % 25 == 0:
+            print(f"  [{idx}/{total_symbols}] Processed {symbol} (no new rows)")
+
+    return total_inserted

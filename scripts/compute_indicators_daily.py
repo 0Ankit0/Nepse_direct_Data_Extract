@@ -27,8 +27,7 @@ from _indicators_core import (
     ensure_indicators_table,
     get_existing_dates,
     load_historicdata,
-    compute_all_indicators,
-    insert_indicators,
+    compute_and_insert_indicators_incremental,
 )
 
 
@@ -42,7 +41,11 @@ def main():
 
         cur = conn.cursor()
         cur.execute(f"SELECT COUNT(*) FROM {SOURCE_TABLE} WHERE date = %s", (today,))
-        count = cur.fetchone()[0]
+        result = cur.fetchone()
+        if result is None:
+            print(f"No stock data found for {today} in '{SOURCE_TABLE}'. Nothing to compute.")
+            return
+        count = result[0]
         if count == 0:
             print(f"No stock data found for {today} in '{SOURCE_TABLE}'. Nothing to compute.")
             return
@@ -59,8 +62,7 @@ def main():
             print("No data found in historicdata table.")
             return
 
-        result = compute_all_indicators(df)
-        inserted = insert_indicators(conn, result, {today})
+        inserted = compute_and_insert_indicators_incremental(conn, df, {today})
         print(f"Inserted {inserted} indicator rows for {today}.")
         print("Done.")
     finally:

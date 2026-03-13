@@ -24,8 +24,7 @@ from _indicators_core import (
     get_existing_dates,
     get_incomplete_dates,
     load_historicdata,
-    compute_all_indicators,
-    insert_indicators,
+    compute_and_insert_indicators_incremental,
 )
 
 
@@ -49,8 +48,7 @@ def main():
             return
 
         print(f"Found {len(new_dates)} new date(s) to compute indicators for.")
-        result = compute_all_indicators(df)
-        inserted = insert_indicators(conn, result, new_dates)
+        inserted = compute_and_insert_indicators_incremental(conn, df, new_dates)
         print(f"Inserted {inserted} indicator rows for {len(new_dates)} new date(s).")
         print("Done.")
     finally:
