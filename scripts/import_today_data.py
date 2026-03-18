@@ -30,7 +30,12 @@ for fname in os.listdir(INDICES_FOLDER):
         indices_file = os.path.join(INDICES_FOLDER, fname)
         break
 
-conn = get_connection()
+try:
+    conn = get_connection()
+except Exception as e:
+    print(f"Warning: Could not connect to database, skipping import. ({e})")
+    sys.exit(0)
+
 try:
     # Import API file if found
     if api_file:

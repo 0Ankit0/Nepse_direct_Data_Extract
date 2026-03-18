@@ -47,12 +47,14 @@ jobs:
         run: uv run python scripts/sharesansar_indices_daily_scraper.py
 
       - name: Import today's data to database if files exist
+        continue-on-error: true
         run: |
           if [ -f sharesansarAPI/$(date +%Y_%m_%d).csv ] || [ -f Indices/$(date +%Y_%m_%d).csv ]; then
             uv run python scripts/import_today_data.py
           fi
 
       - name: Compute indicators for today if new data was imported
+        continue-on-error: true
         run: |
           if [ -f sharesansarAPI/$(date +%Y_%m_%d).csv ]; then
             uv run python scripts/compute_indicators_daily.py
